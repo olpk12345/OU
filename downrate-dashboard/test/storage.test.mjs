@@ -116,6 +116,34 @@ test('ensureDashboardSchema is idempotent and creates Task 2 tables', () => {
   }
 });
 
+test('createUploadBatch stores and reuses original workbook attachments', () => {
+  const fixture = createTempDatabase();
+
+  try {
+    ensureDashboardSchema(fixture.db);
+    const content = Buffer.from('same workbook content');
+    const attachment = {
+      content,
+      filename: '2026-01.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      sourcePath: 'C:/input/2026-01.xlsx'
+    };
+    const first = createUploadBatch(fixture.db, { filename: attachment.filename, attachment });
+    const second = createUploadBatch(fixture.db, { filename: 'copy.xlsx', attachment: { ...attachment, filename: 'copy.xlsx' } });
+
+    assert.deepEqual(first, { id: 1, status: 'pending' });
+    assert.deepEqual(second, { id: 2, status: 'pending' });
+    assert.equal(fixture.db.prepare('SELECT COUNT(*) AS count FROM records').get().count, 1);
+    assert.equal(fixture.db.prepare('SELECT COUNT(*) AS count FROM attachments').get().count, 1);
+    assert.deepEqual(
+      fixture.db.prepare('SELECT record_id, attachment_id FROM downrate_upload_batches ORDER BY id').all().map(row => ({ ...row })),
+      [{ record_id: 1, attachment_id: 1 }, { record_id: 1, attachment_id: 1 }],
+    );
+  } finally {
+    fixture.cleanup();
+  }
+});
+
 test('mergeParsedRows keeps one current keyed row, versions updates, fallback keys, and separate unkeyed exceptions', () => {
   const fixture = createTempDatabase();
 

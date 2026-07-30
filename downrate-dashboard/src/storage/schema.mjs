@@ -7,8 +7,12 @@ export function ensureDashboardSchema(db) {
       filename TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending',
       metadata_json TEXT NOT NULL DEFAULT '{}',
+      record_id INTEGER,
+      attachment_id INTEGER,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      committed_at TEXT
+      committed_at TEXT,
+      FOREIGN KEY (record_id) REFERENCES records(id) ON DELETE SET NULL,
+      FOREIGN KEY (attachment_id) REFERENCES attachments(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS downrate_row_versions (
@@ -114,4 +118,11 @@ export function ensureDashboardSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_downrate_calculation_rows_snapshot
       ON downrate_calculation_rows(snapshot_id);
   `);
+
+  const columns = new Set(
+    db.prepare('PRAGMA table_info(downrate_upload_batches)').all().map(column => column.name),
+  );
+  if (!columns.has('record_id')) db.exec('ALTER TABLE downrate_upload_batches ADD COLUMN record_id INTEGER');
+  if (!columns.has('attachment_id')) db.exec('ALTER TABLE downrate_upload_batches ADD COLUMN attachment_id INTEGER');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_downrate_upload_batches_attachment ON downrate_upload_batches(attachment_id)');
 }

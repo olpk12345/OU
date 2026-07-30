@@ -126,12 +126,47 @@ function updateCurrent(db, normalized, rowVersionId, currentId) {
 }
 
 export function createUploadBatch(db, metadata = {}) {
+  const attachment = metadata.attachment;
+  const batchMetadata = { ...metadata };
+  delete batchMetadata.attachment;
+  let recordId = null;
+  let attachmentId = null;
+
+  if (attachment) {
+    const content = Buffer.from(attachment.content ?? []);
+    const sha256 = attachment.sha256 ?? createHash('sha256').update(content).digest('hex');
+    const existing = db.prepare('SELECT id, record_id FROM attachments WHERE sha256 = ?').get(sha256);
+    if (existing) {
+      attachmentId = existing.id;
+      recordId = existing.record_id;
+    } else {
+      const recordResult = db.prepare(`
+        INSERT INTO records (category, title, data_json)
+        VALUES ('downrate_upload', ?, ?)
+      `).run(attachment.filename ?? metadata.filename ?? '未命名清单', json(batchMetadata));
+      recordId = Number(recordResult.lastInsertRowid);
+      const attachmentResult = db.prepare(`
+        INSERT INTO attachments
+          (record_id, filename, mime_type, source_path, size_bytes, sha256, content_blob)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        recordId,
+        attachment.filename ?? metadata.filename ?? '未命名清单',
+        attachment.mimeType ?? 'application/octet-stream',
+        attachment.sourcePath ?? '',
+        content.byteLength,
+        sha256,
+        content,
+      );
+      attachmentId = Number(attachmentResult.lastInsertRowid);
+    }
+  }
+
   const result = db.prepare(`
-    INSERT INTO downrate_upload_batches (filename, status, metadata_json)
-    VALUES (?, 'pending', ?)
-  `).run(metadata.filename ?? '未命名清单', json(metadata));
-  return db.prepare('SELECT id, filename, status, metadata_json, created_at, committed_at FROM downrate_upload_batches WHERE id = ?')
-    .get(Number(result.lastInsertRowid));
+    INSERT INTO downrate_upload_batches (filename, status, metadata_json, record_id, attachment_id)
+    VALUES (?, 'pending', ?, ?, ?)
+  `).run(metadata.filename ?? '未命名清单', json(batchMetadata), recordId, attachmentId);
+  return { id: Number(result.lastInsertRowid), status: 'pending' };
 }
 
 export function mergeParsedRows(db, batchId, rows) {
