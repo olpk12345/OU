@@ -49,5 +49,20 @@ _xlsx_unpacked/
 .env.*
 node_modules/
 
+# Existing workspace-only utilities and extracted document work
+/*.py
+/*.ps1
+/*.js
+/*.mjs
+/*.txt
+/*.json
+/index.html
+.docx_deps/
+.ppt-audit/
+basiclaw_unpack*/
+docx_edit_*/
+questionnaire_extracted_clean.txt
+wjx_import.txt
+
 # Dashboard test artifacts
 downrate-dashboard/test-artifacts/
