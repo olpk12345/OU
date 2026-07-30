@@ -1,0 +1,53 @@
+# Local databases and backups
+local-db/*.db
+local-db/*.db-*
+local-db/backups/
+
+# Business source files and generated office artifacts
+*.xlsx
+*.xls
+*.docx
+*.pptx
+*.pdf
+*.zip
+*.ndjson
+*.tsv
+
+# Generated images and previews
+*.png
+*.jpg
+*.jpeg
+*.webp
+
+# Local extraction, unpacking, and temporary work directories
+_*/
+__pycache__/
+*.pyc
+.superpowers/
+.cache/
+
+# Generated outputs and local verification artifacts
+outputs/
+verify_*/
+work_*/
+_current/
+_filled_*/
+_final_*/
+_h2_review/
+_refine_review/
+_questionnaire_*/
+_scenario2_*/
+_survey_work/
+_target_*/
+_tmp_*/
+_unpacked_*/
+_skill_test_deps/
+_xlsx_unpacked/
+
+# Local environment files
+.env
+.env.*
+node_modules/
+
+# Dashboard test artifacts
+downrate-dashboard/test-artifacts/
