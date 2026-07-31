@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
-import { defaultPort, defaultDatabasePath, publicIndexPath } from './config.mjs';
+import { defaultPort, defaultDatabasePath, publicDir, publicIndexPath } from './config.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { ensureDashboardSchema } from './storage/repository.mjs';
 import { parseWorkbook } from './import/parse-workbook.mjs';
@@ -83,9 +83,10 @@ export function createServer({ port = defaultPort, databasePath: dbPath = defaul
 }
 
 if (isMainModule(import.meta.url)) {
-  const server = createServer();
+  const runtimePort = Number(process.env.DOWNRATE_PORT ?? defaultPort);
+  const server = createServer({ port: runtimePort });
 
-  server.listen(defaultPort, () => {
-    console.log(`downrate-dashboard listening on http://127.0.0.1:${defaultPort}`);
+  server.listen(runtimePort, () => {
+    console.log(`downrate-dashboard listening on http://127.0.0.1:${runtimePort}`);
   });
 }
