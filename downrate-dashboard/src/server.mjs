@@ -3,6 +3,10 @@ import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { defaultPort, defaultDatabasePath, publicIndexPath } from './config.mjs';
+import { DatabaseSync } from 'node:sqlite';
+import { ensureDashboardSchema } from './storage/repository.mjs';
+import { parseWorkbook } from './import/parse-workbook.mjs';
+import { createApiHandler } from './api/routes.mjs';
 
 export function isMainModule(metaUrl) {
   const entry = process.argv[1];
@@ -35,12 +39,19 @@ function servePublicIndex(res) {
   sendText(res, 200, html, 'text/html; charset=utf-8');
 }
 
-export function createServer({ port = defaultPort, databasePath: dbPath = defaultDatabasePath } = {}) {
+export function createServer({ port = defaultPort, databasePath: dbPath = defaultDatabasePath, database, parseWorkbook: workbookParser = parseWorkbook } = {}) {
   void port;
-  void dbPath;
+  const db = database ?? new DatabaseSync(dbPath);
+  ensureDashboardSchema(db);
+  const apiHandler = createApiHandler({ db, parseWorkbook: workbookParser });
 
-  return http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+
+    if (url.pathname.startsWith('/api/')) {
+      const handled = await apiHandler(req, res, url);
+      if (handled || res.writableEnded) return;
+    }
 
     if (req.method === 'GET' && url.pathname === '/api/health') {
       sendJson(res, 200, { ok: true, service: 'downrate-dashboard' });
@@ -54,6 +65,10 @@ export function createServer({ port = defaultPort, databasePath: dbPath = defaul
 
     sendText(res, 404, 'Not Found');
   });
+  server.on('close', () => {
+    if (!database) db.close();
+  });
+  return server;
 }
 
 if (isMainModule(import.meta.url)) {
