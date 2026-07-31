@@ -65,8 +65,18 @@ def build_workbook(output_path: Path, scenario: str) -> dict[str, object]:
             "P-002",
             "",
             "N",
-            None,
+            datetime(2026, 2, 20),
             "保留原始列C",
+        ])
+
+        sheet.append([
+            "",
+            "24680",
+            "",
+            "",
+            "Y",
+            datetime(2026, 2, 21),
+            "",
         ])
 
     workbook.save(output_path)

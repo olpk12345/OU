@@ -64,7 +64,8 @@ def operator_name(value: str) -> str:
 
 
 def row_hash(values: dict[str, str]) -> str:
-    payload = json.dumps(values, ensure_ascii=False, separators=(",", ":"))
+    canonical_values = {header: values[header] for header in sorted(values)}
+    payload = json.dumps(canonical_values, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 

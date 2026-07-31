@@ -21,8 +21,20 @@ export async function parseWorkbook(inputPath) {
       [scriptPath, path.resolve(inputPath), outputPath],
       { timeout: 120_000, maxBuffer: 16 * 1024 * 1024 },
     );
-    return JSON.parse(await fs.readFile(outputPath, 'utf8'));
+    const result = JSON.parse(await fs.readFile(outputPath, 'utf8'));
+    if (Array.isArray(result.errors) && result.errors.length > 0) {
+      const firstError = result.errors[0];
+      const structuredError = new Error(firstError.message || 'Excel解析失败');
+      structuredError.code = firstError.code;
+      structuredError.filename = path.resolve(inputPath);
+      structuredError.details = result.errors;
+      throw structuredError;
+    }
+    return result;
   } catch (error) {
+    if (error?.code && error?.details) {
+      throw error;
+    }
     const detail = error.stderr?.trim() || error.message;
     throw new Error(`Excel清单解析失败: ${detail}`, { cause: error });
   } finally {

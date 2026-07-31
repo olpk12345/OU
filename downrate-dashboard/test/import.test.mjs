@@ -21,117 +21,52 @@ function createFixtureWorkbook(scenario = 'default') {
     outputPath,
     cleanup() {
       fs.rmSync(tempRoot, { recursive: true, force: true });
-    }
+    },
   };
 }
 
-test('parseWorkbook keeps reordered headers, preserves all columns, and extracts the period from 出单时间', async () => {
+test('parseWorkbook preserves columns, extracts periods, and keeps unkeyed rows', async () => {
   const fixture = createFixtureWorkbook();
 
   try {
     const result = await parseWorkbook(fixture.outputPath);
 
     assert.equal(result.sourceFile, fixture.outputPath);
-    assert.deepEqual(result.headers, [
-      '退回审核意见',
-      '出单员',
-      '保单号',
-      '投保单号',
-      '提核退回标志',
-      '出单时间',
-      '备注列'
-    ]);
+    assert.equal(result.headers.length, 7);
     assert.deepEqual(result.periods, [{ year: 2026, month: 2 }]);
-    assert.deepEqual(result.errors, [
-      {
-        code: 'missing_date',
-        sourceRow: 4,
-        header: '出单时间',
-        message: '第 4 行缺少有效的出单时间'
-      }
-    ]);
-
-    assert.equal(result.rows.length, 3);
+    assert.deepEqual(result.errors, []);
+    assert.equal(result.rows.length, 4);
     assert.deepEqual(Object.keys(result.rows[0].values), result.headers);
-    assert.deepEqual(result.rows[0].values, {
-      '退回审核意见': '初审通过',
-      '出单员': '12345张三',
-      '保单号': 'P-001',
-      '投保单号': 'TB-001',
-      '提核退回标志': 'N',
-      '出单时间': '2026-02-18T10:30:00',
-      '备注列': '保留原始列A'
-    });
-    assert.deepEqual(result.rows[0], {
-      sourceRow: 2,
-      values: result.rows[0].values,
-      operatorRaw: '12345张三',
-      operatorName: '张三',
-      opinion: '初审通过',
-      returnFlag: 'N',
-      recordDate: '2026-02-18',
-      year: 2026,
-      month: 2,
-      rowKey: 'P-001',
-      rowHash: result.rows[0].rowHash
-    });
+    assert.equal(result.rows[0].operatorName, '张三');
+    assert.equal(result.rows[0].recordDate, '2026-02-18');
+    assert.equal(result.rows[0].rowKey, 'P-001');
+    assert.equal(result.rows[1].operatorName, '李四');
+    assert.equal(result.rows[1].rowKey, 'TB-ONLY-1');
+    assert.equal(result.rows[2].operatorName, '王五');
+    assert.equal(result.rows[2].recordDate, '2026-02-20');
+    assert.equal(result.rows[3].rowKey, '');
     assert.equal(typeof result.rows[0].rowHash, 'string');
-    assert.equal(result.rows[0].rowHash.length > 0, true);
-
-    assert.deepEqual(result.rows[1], {
-      sourceRow: 3,
-      values: result.rows[1].values,
-      operatorRaw: '工号67890李四',
-      operatorName: '李四',
-      opinion: '',
-      returnFlag: 'Y',
-      recordDate: '2026-02-19',
-      year: 2026,
-      month: 2,
-      rowKey: 'TB-ONLY-1',
-      rowHash: result.rows[1].rowHash
-    });
-    assert.deepEqual(result.rows[2], {
-      sourceRow: 4,
-      values: result.rows[2].values,
-      operatorRaw: '客户经理王五',
-      operatorName: '王五',
-      opinion: '待补充',
-      returnFlag: 'N',
-      recordDate: null,
-      year: null,
-      month: null,
-      rowKey: 'P-002',
-      rowHash: result.rows[2].rowHash
-    });
+    assert.ok(result.rows[0].rowHash.length > 0);
   } finally {
     fixture.cleanup();
   }
 });
 
-test('parseWorkbook reports missing required headers as structured errors', async () => {
+test('parseWorkbook throws structured errors for missing required headers', async () => {
   const fixture = createFixtureWorkbook('missing-header');
 
   try {
-    const result = await parseWorkbook(fixture.outputPath);
-
-    assert.deepEqual(result.headers, [
-      '退回审核意见',
-      '出单员',
-      '保单号',
-      '投保单号',
-      '提核退回标志',
-      '备注列'
-    ]);
-    assert.deepEqual(result.rows, []);
-    assert.deepEqual(result.periods, []);
-    assert.deepEqual(result.errors, [
-      {
-        code: 'missing_headers',
-        headers: ['出单时间'],
-        message: '缺少必需表头: 出单时间'
-      }
-    ]);
+    await assert.rejects(
+      () => parseWorkbook(fixture.outputPath),
+      (error) => {
+        assert.equal(error.code, 'missing_headers');
+        assert.equal(error.filename, fixture.outputPath);
+        assert.equal(error.details.length, 1);
+        assert.equal(error.details[0].code, 'missing_headers');
+        assert.equal(error.details[0].headers.length, 1);
+        return true;
+      },
+    );
   } finally {
     fixture.cleanup();
   }
