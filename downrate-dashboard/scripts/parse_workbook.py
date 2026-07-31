@@ -6,6 +6,7 @@ import html
 import json
 import re
 import zipfile
+import xml.etree.ElementTree as ET
 from datetime import date, datetime, time
 from datetime import timedelta
 from pathlib import Path
@@ -124,6 +125,102 @@ def excel_column_letters(number: int) -> bytes:
         number, remainder = divmod(number - 1, 26)
         letters = chr(ord("A") + remainder) + letters
     return letters.encode("ascii")
+
+
+def xml_cell_raw(cell) -> str:
+    value = cell.find("{http://schemas.openxmlformats.org/spreadsheetml/2006/main}v")
+    return "" if value is None else value.text or ""
+
+
+def read_selected_shared_strings(archive, wanted: set[int]) -> dict[int, str]:
+    values = {}
+    if not wanted:
+        return values
+    with archive.open("xl/sharedStrings.xml") as stream:
+        index = 0
+        for _, item in ET.iterparse(stream, events=("end",)):
+            if item.tag == "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}si":
+                if index in wanted:
+                    values[index] = "".join(item.itertext())
+                item.clear()
+                index += 1
+    return values
+
+
+def parse_large_workbook_selected(source: Path) -> dict[str, object]:
+    namespace = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+    with zipfile.ZipFile(source) as archive:
+        header_raw = {}
+        with archive.open("xl/worksheets/sheet1.xml") as stream:
+            for _, row in ET.iterparse(stream, events=("end",)):
+                if row.tag != namespace + "row":
+                    continue
+                if row.attrib.get("r") == "1":
+                    for cell in row.findall(namespace + "c"):
+                        header_raw[re.match(r"[A-Z]+", cell.attrib.get("r", "")).group(0)] = (cell.attrib.get("t", ""), xml_cell_raw(cell))
+                    row.clear()
+                    break
+                row.clear()
+        header_indices = {column: int(raw) for column, (kind, raw) in header_raw.items() if kind == "s" and raw.isdigit()}
+        header_strings = read_selected_shared_strings(archive, set(header_indices.values()))
+        headers_by_column = {column: header_strings.get(index, "") for column, index in header_indices.items()}
+        selected_names = ["出单员", "退回审核意见", "提核退回标志", "出单时间", "保单号", "投保单号"]
+        field_cols = {name: column for column, name in headers_by_column.items()}
+        missing = [name for name in selected_names if name not in field_cols]
+        if missing:
+            return {"sourceFile": str(source), "headers": list(headers_by_column.values()), "rows": [], "periods": [], "errors": [{"code": "missing_headers", "headers": missing, "message": f"缺少必需表头: {'、'.join(missing)}"}]}
+
+        selected_cols = set(field_cols.values())
+        records = []
+        wanted_indices: set[int] = set()
+        with archive.open("xl/worksheets/sheet1.xml") as stream:
+            for _, row in ET.iterparse(stream, events=("end",)):
+                if row.tag != namespace + "row":
+                    continue
+                row_number = int(row.attrib.get("r", "0"))
+                if row_number > 1:
+                    row_cells = {}
+                    for cell in row.findall(namespace + "c"):
+                        column = re.match(r"[A-Z]+", cell.attrib.get("r", "")).group(0)
+                        if column not in selected_cols:
+                            continue
+                        kind, raw = cell.attrib.get("t", ""), xml_cell_raw(cell)
+                        row_cells[column] = (kind, raw)
+                        if kind == "s" and raw.isdigit():
+                            wanted_indices.add(int(raw))
+                    records.append((row_number, row_cells))
+                row.clear()
+        strings = read_selected_shared_strings(archive, wanted_indices)
+
+        def value(row_cells, name):
+            kind, raw = row_cells.get(field_cols[name], ("", ""))
+            return strings.get(int(raw), "") if kind == "s" and raw.isdigit() else raw
+
+        parsed_rows = []
+        errors = []
+        periods: set[tuple[int, int]] = set()
+        for source_row, row_cells in records:
+            opinion = value(row_cells, "退回审核意见").strip()
+            if not opinion:
+                continue
+            values = {name: value(row_cells, name) for name in selected_names}
+            date_value = values["出单时间"]
+            if re.match(r"^\d+(\.\d+)?$", date_value):
+                date_value = (date(1899, 12, 30) + timedelta(days=float(date_value))).isoformat()
+            record_date, year, month = parse_record_date(date_value)
+            if record_date is None:
+                errors.append({"code": "missing_date", "sourceRow": source_row, "header": "出单时间", "message": f"第 {source_row} 行缺少有效的出单时间"})
+            else:
+                periods.add((year, month))
+            normalized = {
+                "sourceRow": source_row, "values": values, "operatorRaw": values["出单员"],
+                "operatorName": operator_name(values["出单员"]), "opinion": opinion,
+                "returnFlag": values["提核退回标志"], "recordDate": record_date, "year": year, "month": month,
+                "rowKey": values["保单号"].strip() or values["投保单号"].strip(),
+            }
+            normalized["rowHash"] = row_hash(values)
+            parsed_rows.append(normalized)
+    return {"sourceFile": str(source), "headers": selected_names, "rows": parsed_rows, "periods": [{"year": year, "month": month} for year, month in sorted(periods)], "errors": errors}
 
 
 def parse_large_workbook_targeted(source: Path) -> dict[str, object]:
@@ -353,7 +450,7 @@ def parse_large_workbook(source: Path) -> dict[str, object]:
 
 def parse_workbook(source: Path) -> dict[str, object]:
     if source.stat().st_size >= 50 * 1024 * 1024:
-        return parse_large_workbook_targeted(source)
+        return parse_large_workbook_selected(source)
     workbook = load_workbook(source, read_only=True, data_only=True)
     try:
         sheet = workbook.active
