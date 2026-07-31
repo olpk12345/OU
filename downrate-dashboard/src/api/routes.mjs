@@ -7,7 +7,8 @@ import { loadWorkloads, buildDenominators, buildRoster } from '../domain/databas
 import { calculatePeriod, loadScorePolicy } from '../domain/calculation.mjs';
 import { classifyOpinion, loadOpinionRules } from '../domain/responsibility.mjs';
 
-const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+const MAX_UPLOAD_MB = Number(process.env.DOWNRATE_MAX_UPLOAD_MB ?? 256);
+const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 
 function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });

@@ -2,105 +2,50 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from datetime import datetime
 from pathlib import Path
 
 from openpyxl import Workbook
 
 
-DEFAULT_HEADERS = [
-    "退回审核意见",
-    "出单员",
-    "保单号",
-    "投保单号",
-    "提核退回标志",
-    "出单时间",
-    "备注列",
+HEADERS = [
+    "\u9000\u56de\u5ba1\u6838\u610f\u89c1",
+    "\u51fa\u5355\u5458",
+    "\u4fdd\u5355\u53f7",
+    "\u6295\u4fdd\u5355\u53f7",
+    "\u63d0\u6838\u9000\u56de\u6807\u5fd7",
+    "\u51fa\u5355\u65f6\u95f4",
+    "\u5907\u6ce8\u5217",
 ]
 
 
 def build_workbook(output_path: Path, scenario: str) -> dict[str, object]:
     workbook = Workbook()
     sheet = workbook.active
-    sheet.title = "导入数据"
-
-    headers = list(DEFAULT_HEADERS)
+    sheet.title = "\u5bfc\u5165\u6570\u636e"
+    headers = list(HEADERS)
     if scenario == "missing-header":
-      headers.remove("出单时间")
-
+        headers.remove("\u51fa\u5355\u65f6\u95f4")
     sheet.append(headers)
-
     if scenario == "missing-header":
-        sheet.append([
-            "初审通过",
-            "12345张三",
-            "P-001",
-            "TB-001",
-            "N",
-            "保留原始列A",
-        ])
+        sheet.append(["\u521d\u5ba1\u901a\u8fc7", "12345\u5f20\u4e09", "P-001", "TB-001", "N", "\u4fdd\u7559\u539f\u59cb\u5217"])
     else:
-        sheet.append([
-            "初审通过",
-            "12345张三",
-            "P-001",
-            "TB-001",
-            "N",
-            datetime(2026, 2, 18, 10, 30, 0),
-            "保留原始列A",
-        ])
-        sheet.append([
-            "",
-            "工号67890李四",
-            "",
-            "TB-ONLY-1",
-            "Y",
-            "2026-02-19",
-            "保留原始列B",
-        ])
-        sheet.append([
-            "待补充",
-            "客户经理王五",
-            "P-002",
-            "",
-            "N",
-            datetime(2026, 2, 20),
-            "保留原始列C",
-        ])
-
-        sheet.append([
-            "",
-            "24680",
-            "",
-            "",
-            "Y",
-            datetime(2026, 2, 21),
-            "",
-        ])
-
+        sheet.append(["\u521d\u5ba1\u901a\u8fc7", "12345\u5f20\u4e09", "P-001", "TB-001", "N", datetime(2026, 2, 18, 10, 30), "\u4fdd\u7559\u539f\u59cb\u5217A"])
+        sheet.append(["", "\u5de5\u53f767890\u674e\u56db", "", "TB-ONLY-1", "Y", "2026-02-19", "\u4fdd\u7559\u539f\u59cb\u5217B"])
+        sheet.append(["\u5f85\u8865\u5145", "\u5ba2\u6237\u7ecf\u7406\u738b\u4e94", "P-002", "", "N", datetime(2026, 2, 20), "\u4fdd\u7559\u539f\u59cb\u5217C"])
+        sheet.append(["\u5f85\u786e\u8ba4\u539f\u56e0", "24680", "", "", "Y", datetime(2026, 2, 21), ""])
     workbook.save(output_path)
-    return {
-        "path": str(output_path),
-        "headers": headers,
-        "scenario": scenario,
-    }
+    return {"path": str(output_path), "headers": headers, "scenario": scenario}
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("output", help="output workbook path")
-    parser.add_argument(
-        "--scenario",
-        choices=["default", "missing-header"],
-        default="default",
-    )
+    parser.add_argument("output")
+    parser.add_argument("--scenario", choices=["default", "missing-header"], default="default")
     args = parser.parse_args()
-
     output_path = Path(args.output).resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = build_workbook(output_path, args.scenario)
-    print(json.dumps(payload, ensure_ascii=False))
+    print(json.dumps(build_workbook(output_path, args.scenario), ensure_ascii=False))
     return 0
 
 

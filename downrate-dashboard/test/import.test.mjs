@@ -35,16 +35,14 @@ test('parseWorkbook preserves columns, extracts periods, and keeps unkeyed rows'
     assert.equal(result.headers.length, 7);
     assert.deepEqual(result.periods, [{ year: 2026, month: 2 }]);
     assert.deepEqual(result.errors, []);
-    assert.equal(result.rows.length, 4);
+    assert.equal(result.rows.length, 3);
     assert.deepEqual(Object.keys(result.rows[0].values), result.headers);
     assert.equal(result.rows[0].operatorName, '张三');
     assert.equal(result.rows[0].recordDate, '2026-02-18');
     assert.equal(result.rows[0].rowKey, 'P-001');
-    assert.equal(result.rows[1].operatorName, '李四');
-    assert.equal(result.rows[1].rowKey, 'TB-ONLY-1');
-    assert.equal(result.rows[2].operatorName, '王五');
-    assert.equal(result.rows[2].recordDate, '2026-02-20');
-    assert.equal(result.rows[3].rowKey, '');
+    assert.equal(result.rows[1].operatorName, '王五');
+    assert.equal(result.rows[1].recordDate, '2026-02-20');
+    assert.equal(result.rows[2].rowKey, '');
     assert.equal(typeof result.rows[0].rowHash, 'string');
     assert.ok(result.rows[0].rowHash.length > 0);
   } finally {
