@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>出单员下发率指标看板</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">率</span><div><h1>出单员下发率指标看板</h1><p>广西后援作业中心</p></div></div>
+    <div class="toolbar">
+      <label>年度<select id="yearSelect" aria-label="选择年度"></select></label>
+      <label>月份<select id="monthSelect" aria-label="选择月份"></select></label>
+      <button class="primary" id="uploadButton" type="button">上传清单</button>
+      <input id="fileInput" type="file" accept=".xlsx" hidden>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="notice" id="notice" role="status" hidden></section>
+    <section class="kpi-grid" aria-label="整体指标">
+      <article class="kpi"><span>平均得分</span><strong id="averageScore">--</strong><small>普通组员</small></article>
+      <article class="kpi"><span>出单员人数</span><strong id="operatorCount">--</strong><small>数据库匹配</small></article>
+      <article class="kpi"><span>列入笔数</span><strong id="includedCount">--</strong><small>符合下发清单</small></article>
+      <article class="kpi"><span>待确认意见</span><strong class="amber" id="pendingCount">--</strong><small>不计入当前得分</small></article>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel risk-panel"><div class="panel-head"><div><span class="eyebrow">风险关注</span><h2>需要关注的低分人员</h2></div><span class="threshold">得分 &lt; 60</span></div><div id="riskList" class="risk-list"><p class="empty">正在加载数据</p></div></article>
+      <article class="panel distribution-panel"><div class="panel-head"><div><span class="eyebrow">得分分布</span><h2>人员考核分布</h2></div></div><div id="distribution" class="distribution"></div></article>
+    </section>
+
+    <section class="panel table-panel"><div class="panel-head"><div><span class="eyebrow">人员明细</span><h2>考核结果排名</h2></div><span id="resultMeta" class="muted"></span></div><div class="table-wrap"><table><thead><tr><th>排名</th><th>出单员</th><th>下发率</th><th>列入笔数</th><th>总笔数</th><th>指标得分</th><th>状态</th></tr></thead><tbody id="resultTable"><tr><td colspan="7" class="empty">正在加载数据</td></tr></tbody></table></div></section>
+  </main>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

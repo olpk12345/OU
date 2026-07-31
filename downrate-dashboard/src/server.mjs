@@ -63,6 +63,17 @@ export function createServer({ port = defaultPort, databasePath: dbPath = defaul
       return;
     }
 
+    if (req.method === 'GET' && ['/styles.css', '/app.js'].includes(url.pathname)) {
+      const assetPath = path.join(publicDir, url.pathname.slice(1));
+      if (!fs.existsSync(assetPath)) {
+        sendText(res, 404, 'Not Found');
+        return;
+      }
+      const contentType = url.pathname.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8';
+      sendText(res, 200, fs.readFileSync(assetPath, 'utf8'), contentType);
+      return;
+    }
+
     sendText(res, 404, 'Not Found');
   });
   server.on('close', () => {
