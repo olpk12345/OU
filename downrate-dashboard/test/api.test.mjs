@@ -54,11 +54,12 @@ test('upload preview is isolated and commit merges cumulative rows', async () =>
 
   try {
     let response = await request(port, 'POST', '/api/uploads/preview', Buffer.from('fixture'), {
-      'x-filename': '2026-01.xlsx',
+      'x-filename-base64': Buffer.from('2026年1月.xlsx', 'utf8').toString('base64'),
       'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
     let payload = await readJson(response);
     assert.equal(response.statusCode, 200);
+    assert.equal(payload.filename, '2026年1月.xlsx');
     assert.equal(payload.counts.inserted, 1);
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM downrate_current_rows').get().count, 0);
 

@@ -97,7 +97,10 @@ export function createApiHandler({ db, parseWorkbook }) {
     try {
       if (req.method === 'POST' && url.pathname === '/api/uploads/preview') {
         const content = await bodyBuffer(req);
-        const filename = req.headers['x-filename'] || 'uploaded.xlsx';
+        const encodedFilename = req.headers['x-filename-base64'];
+        const filename = encodedFilename
+          ? Buffer.from(String(encodedFilename), 'base64').toString('utf8')
+          : String(req.headers['x-filename'] || 'uploaded.xlsx');
         const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'downrate-dashboard-upload-'));
         const inputPath = path.join(tempRoot, filename.replace(/[\\/]/g, '_'));
         try {
